@@ -29,7 +29,9 @@ logger = logging.getLogger(__name__)
 COLLECTION_NAME = "stock_basic_info"
 STATUS_COLLECTION = "sync_status"
 JOB_KEY = "stock_basics_multi_source"
-STOCK_LIST_FETCH_TIMEOUT_SECONDS = 45
+# BaoStock's free, full-market endpoint can be slower than a paid API.  Leave
+# enough time for that legitimate fallback, while keeping a finite bound.
+STOCK_LIST_FETCH_TIMEOUT_SECONDS = 90
 
 
 class DataSourcePriority(Enum):
@@ -298,14 +300,13 @@ class MultiSourceBasicsSyncService:
                 preferred_sources or [],
                 STOCK_LIST_FETCH_TIMEOUT_SECONDS,
             )
-            retry_sources = [source for source in (preferred_sources or []) if source != "qmt"]
-            if retry_sources:
-                logger.warning(
-                    "↩️ [多数据源基础信息同步] 重试股票列表获取，并将 QMT 延后: retry_sources=%s",
-                    retry_sources,
-                )
-                return await _fetch_once(retry_sources, "retry_without_qmt")
-            raise
+            # asyncio.to_thread work cannot be cancelled once started. Retrying
+            # immediately used to start a second full-market BaoStock request,
+            # causing resource contention and hiding the actual timeout.
+            raise RuntimeError(
+                "股票列表获取超时：所有可用数据源在 "
+                f"{STOCK_LIST_FETCH_TIMEOUT_SECONDS} 秒内均未返回数据"
+            )
 
     async def _run_full_sync_impl(
         self,

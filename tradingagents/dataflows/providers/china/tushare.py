@@ -164,7 +164,8 @@ class TushareProvider(BaseStockDataProvider):
                     self.logger.info(f"🔄 初始化 Tushare API Client (Token来源: {source})")
                     # 直接传入 token 给 pro_api，不调用 set_token 避免写 tk.csv 文件
                     # ts.set_token(token) 会把 token 缓存到 ~/tk.csv，在沙箱等受限环境会 Permission denied
-                    api = ts.pro_api(token)
+                    from tradingagents.dataflows.tushare_client import create_tushare_client
+                    api = create_tushare_client(token)
 
                     if validate:
                         test_data = api.stock_basic(list_status='L', limit=1)

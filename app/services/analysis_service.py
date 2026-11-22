@@ -175,12 +175,11 @@ class AnalysisService:
             deep_model_config = None
 
             try:
-                from pymongo import MongoClient
+                from app.core.database import get_mongo_db_sync
                 from app.core.config import settings
 
                 # 使用同步 MongoDB 客户端
-                client = MongoClient(settings.MONGO_URI)
-                db = client[settings.MONGO_DB]
+                db = get_mongo_db_sync()
                 collection = db.system_configs
 
                 # 查询最新的活跃配置
@@ -326,12 +325,11 @@ class AnalysisService:
             deep_model_config = None
 
             try:
-                from pymongo import MongoClient
+                from app.core.database import get_mongo_db_sync
                 from app.core.config import settings
 
                 # 使用同步 MongoDB 客户端
-                client = MongoClient(settings.MONGO_URI)
-                db = client[settings.MONGO_DB]
+                db = get_mongo_db_sync()
                 collection = db.system_configs
 
                 # 查询最新的活跃配置

@@ -31,7 +31,15 @@ class BaoStockAdapter(DataSourceAdapter):
         except ImportError:
             return False
 
-    def get_stock_list(self) -> Optional[pd.DataFrame]:
+    def get_stock_list(self, include_industry: bool = False) -> Optional[pd.DataFrame]:
+        """获取 A 股股票列表。
+
+        ``query_stock_industry`` is a separate full-market BaoStock query and
+        can take tens of seconds.  The multi-source basics synchronizer already
+        enriches records from the official industry mapping afterwards, so the
+        default path deliberately skips that expensive request.  Callers that
+        specifically need BaoStock's industry labels may opt in.
+        """
         if not self.is_available():
             return None
         try:
@@ -61,38 +69,38 @@ class BaoStockAdapter(DataSourceAdapter):
                 df['name'] = df['code_name']
                 df['area'] = ''
 
-                # 获取行业信息
-                logger.info("BaoStock: Querying stock industry info...")
-                industry_rs = bs.query_stock_industry()
-                if industry_rs.error_code == '0':
-                    industry_list = []
-                    while (industry_rs.error_code == '0') & industry_rs.next():
-                        industry_list.append(industry_rs.get_row_data())
-                    if industry_list:
-                        industry_df = pd.DataFrame(industry_list, columns=industry_rs.fields)
+                df['industry'] = ''
+                if include_industry:
+                    # 获取行业信息（可选：全市场查询较慢，不用于同步热路径）
+                    logger.info("BaoStock: Querying stock industry info...")
+                    industry_rs = bs.query_stock_industry()
+                    if industry_rs.error_code == '0':
+                        industry_list = []
+                        while (industry_rs.error_code == '0') & industry_rs.next():
+                            industry_list.append(industry_rs.get_row_data())
+                        if industry_list:
+                            industry_df = pd.DataFrame(industry_list, columns=industry_rs.fields)
 
-                        # 去掉行业编码前缀（如 "I65软件和信息技术服务业" -> "软件和信息技术服务业"）
-                        def clean_industry_name(industry_str):
-                            if not industry_str or pd.isna(industry_str):
-                                return ''
-                            # 使用正则表达式去掉前面的字母和数字编码（如 I65、C31 等）
-                            import re
-                            cleaned = re.sub(r'^[A-Z]\d+', '', str(industry_str))
-                            return cleaned.strip()
+                            # 去掉行业编码前缀（如 "I65软件和信息技术服务业" -> "软件和信息技术服务业"）
+                            def clean_industry_name(industry_str):
+                                if not industry_str or pd.isna(industry_str):
+                                    return ''
+                                # 使用正则表达式去掉前面的字母和数字编码（如 I65、C31 等）
+                                import re
+                                cleaned = re.sub(r'^[A-Z]\d+', '', str(industry_str))
+                                return cleaned.strip()
 
-                        industry_df['industry_clean'] = industry_df['industry'].apply(clean_industry_name)
+                            industry_df['industry_clean'] = industry_df['industry'].apply(clean_industry_name)
 
-                        # 创建行业映射字典 {code: industry_clean}
-                        industry_map = dict(zip(industry_df['code'], industry_df['industry_clean']))
-                        # 将行业信息合并到主DataFrame
-                        df['industry'] = df['code'].map(industry_map).fillna('')
-                        logger.info(f"BaoStock: Successfully mapped industry info for {len(industry_map)} stocks")
+                            # 创建行业映射字典 {code: industry_clean}
+                            industry_map = dict(zip(industry_df['code'], industry_df['industry_clean']))
+                            # 将行业信息合并到主DataFrame
+                            df['industry'] = df['code'].map(industry_map).fillna('')
+                            logger.info(f"BaoStock: Successfully mapped industry info for {len(industry_map)} stocks")
+                        else:
+                            logger.warning("BaoStock: No industry data returned")
                     else:
-                        df['industry'] = ''
-                        logger.warning("BaoStock: No industry data returned")
-                else:
-                    df['industry'] = ''
-                    logger.warning(f"BaoStock: Failed to query industry info: {industry_rs.error_msg}")
+                        logger.warning(f"BaoStock: Failed to query industry info: {industry_rs.error_msg}")
 
                 df['market'] = '\u4e3b\u677f'
                 df['list_date'] = ''

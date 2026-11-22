@@ -28,9 +28,16 @@ def resolve_python_executable(
             return configured
 
     candidates = [
-        root / "release" / "TradingAgentsCN-portable" / "vendors" / "python" / "python.exe",
-        root / "env" / "Scripts" / "python.exe",
+        # macOS / Linux 虚拟环境（优先，含项目全部依赖）
+        root / ".venv" / "bin" / "python",
+        root / "venv" / "bin" / "python",
+        root / "env" / "bin" / "python",
+        # Windows 虚拟环境
+        root / ".venv" / "Scripts" / "python.exe",
         root / "venv" / "Scripts" / "python.exe",
+        root / "env" / "Scripts" / "python.exe",
+        # 便携式 / 打包运行时
+        root / "release" / "TradingAgentsCN-portable" / "vendors" / "python" / "python.exe",
         root / "vendors" / "python" / "python.exe",
     ]
 

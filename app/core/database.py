@@ -5,6 +5,7 @@
 
 import logging
 import asyncio
+import threading
 from typing import Callable, Optional, Tuple, Dict
 from motor.motor_asyncio import AsyncIOMotorClient, AsyncIOMotorCollection, AsyncIOMotorDatabase
 from pymongo import MongoClient
@@ -52,6 +53,7 @@ _mongo_loop_bindings: Dict[int, Tuple[asyncio.AbstractEventLoop, AsyncIOMotorCli
 # 同步 MongoDB 连接（用于非异步上下文）
 _sync_mongo_client: Optional[MongoClient] = None
 _sync_mongo_db: Optional[Database] = None
+_sync_mongo_lock = threading.Lock()
 
 
 class DatabaseManager:
@@ -373,7 +375,7 @@ async def init_database():
         return
 
     try:
-        if not mongo_ready:
+        if not mongo_ready and settings.MONGODB_ENABLED:
             # 初始化MongoDB
             await db_manager.init_mongodb()
             if current_loop is not None and db_manager.mongo_client is not None and db_manager.mongo_db is not None:
@@ -382,13 +384,17 @@ async def init_database():
                 mongo_client = db_manager.mongo_client
                 mongo_db = db_manager.mongo_db
                 _mongo_runtime_loop = current_loop
+        elif not settings.MONGODB_ENABLED:
+            logger.info("⏭️  MongoDB未启用 (MONGODB_ENABLED=false)，跳过MongoDB初始化")
 
-        if not redis_ready:
+        if not redis_ready and settings.REDIS_ENABLED:
             # 初始化Redis
             await db_manager.init_redis()
             redis_client = db_manager.redis_client
             redis_pool = db_manager.redis_pool
             _redis_runtime_loop = asyncio.get_running_loop()
+        elif not settings.REDIS_ENABLED:
+            logger.info("⏭️  Redis未启用 (REDIS_ENABLED=false)，跳过Redis初始化")
 
         logger.info("🎉 所有数据库连接初始化完成")
 
@@ -837,11 +843,10 @@ def get_mongo_db_sync() -> Database:
     """
     global _sync_mongo_client, _sync_mongo_db
 
-    if _sync_mongo_db is not None:
-        return _sync_mongo_db
+    with _sync_mongo_lock:
+        if _sync_mongo_db is not None and not _is_pymongo_client_closed(_sync_mongo_client):
+            return _sync_mongo_db
 
-    # 创建同步 MongoDB 客户端
-    if _sync_mongo_client is None:
         _sync_mongo_client = MongoClient(
             settings.MONGO_URI,
             maxPoolSize=settings.MONGO_MAX_CONNECTIONS,
@@ -849,9 +854,8 @@ def get_mongo_db_sync() -> Database:
             maxIdleTimeMS=30000,
             serverSelectionTimeoutMS=5000
         )
-
-    _sync_mongo_db = _sync_mongo_client[settings.MONGO_DB]
-    return _sync_mongo_db
+        _sync_mongo_db = _sync_mongo_client[settings.MONGO_DB]
+        return _sync_mongo_db
 
 
 def get_redis_client() -> Redis:

@@ -79,10 +79,8 @@ class UnifiedAnalysisService:
         """获取数据库连接（懒加载）"""
         if self._db is None:
             try:
-                from pymongo import MongoClient
-                from app.core.config import settings
-                client = MongoClient(settings.MONGO_URI)
-                self._db = client[settings.MONGO_DB]
+                from app.core.database import get_mongo_db_sync
+                self._db = get_mongo_db_sync()
             except Exception as e:
                 logger.warning(f"无法连接数据库: {e}")
         return self._db

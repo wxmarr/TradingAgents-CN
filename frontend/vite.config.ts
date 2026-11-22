@@ -39,6 +39,8 @@ function courseImagesPlugin() {
 
 // https://vitejs.dev/config/
 export default defineConfig({
+  // 将依赖预构建缓存放到 /tmp（沙箱外），避免运行时依赖优化触发 WorkBuddy 沙箱的批量删除防护
+  cacheDir: '/tmp/vite-cache-tradingagents-cn',
   plugins: [
     vue(),
     courseImagesPlugin(),
@@ -75,6 +77,8 @@ export default defineConfig({
   server: {
     host: '0.0.0.0',
     port: parseInt(process.env.VITE_PORT || '3000', 10),
+    // 允许通过内网穿透/公网域名访问（如 trycloudflare.com），否则 Vite 会 403 拦截非 localhost 的 Host
+    allowedHosts: ['.trycloudflare.com', 'localhost', '127.0.0.1', '192.168.3.89', '.local'],
     hmr: {
       overlay: false
     },

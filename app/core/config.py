@@ -36,14 +36,15 @@ class Settings(BaseSettings):
     ALLOWED_HOSTS: List[str] = Field(default_factory=lambda: ["*"])
 
     # MongoDB配置
+    MONGODB_ENABLED: bool = Field(default=True)  # 是否启用MongoDB（false 时跳过连接，降级到JSON文件存储）
     MONGODB_HOST: str = Field(default="localhost")
     MONGODB_PORT: int = Field(default=27017)
     MONGODB_USERNAME: str = Field(default="")
     MONGODB_PASSWORD: str = Field(default="")
     MONGODB_DATABASE: str = Field(default="tradingagents")
     MONGODB_AUTH_SOURCE: str = Field(default="admin")
-    MONGO_MAX_CONNECTIONS: int = Field(default=100)
-    MONGO_MIN_CONNECTIONS: int = Field(default=10)
+    MONGO_MAX_CONNECTIONS: int = Field(default=10, ge=1)
+    MONGO_MIN_CONNECTIONS: int = Field(default=0, ge=0)
     # MongoDB超时参数（毫秒）- 用于处理大量历史数据
     MONGO_CONNECT_TIMEOUT_MS: int = Field(default=30000)  # 连接超时：30秒（原为10秒）
     MONGO_SOCKET_TIMEOUT_MS: int = Field(default=60000)   # 套接字超时：60秒（原为20秒）
@@ -63,6 +64,7 @@ class Settings(BaseSettings):
         return self.MONGODB_DATABASE
 
     # Redis配置
+    REDIS_ENABLED: bool = Field(default=True)  # 是否启用Redis（false 时跳过连接，降级到内存/文件缓存）
     REDIS_HOST: str = Field(default="localhost")
     REDIS_PORT: int = Field(default=6379)
     REDIS_PASSWORD: str = Field(default="")
@@ -233,6 +235,7 @@ class Settings(BaseSettings):
 
     # Tushare基础配置
     TUSHARE_TOKEN: str = Field(default="", description="Tushare API Token")
+    TUSHARE_API_URL: str = Field(default="", description="Tushare API 地址；留空使用 SDK 默认地址")
     TUSHARE_ENABLED: bool = Field(default=True, description="启用Tushare数据源")
     TUSHARE_TIER: str = Field(default="standard", description="Tushare积分等级 (free/basic/standard/premium/vip)")
     TUSHARE_RATE_LIMIT_SAFETY_MARGIN: float = Field(default=0.8, ge=0.1, le=1.0, description="速率限制安全边际")

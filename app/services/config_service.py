@@ -1699,7 +1699,8 @@ class ConfigService:
                         logger.info(f"🌐 [TEST] Proxy disabled for Tushare API call (domestic data source)")
 
                         # 直接传入 token 给 pro_api，不调用 set_token 避免写 tk.csv 文件
-                        pro = ts.pro_api(api_key)
+                        from tradingagents.dataflows.tushare_client import create_tushare_client
+                        pro = create_tushare_client(api_key)
                         # 获取交易日历（轻量级测试）
                         df = pro.trade_cal(exchange='SSE', start_date='20240101', end_date='20240101')
                     finally:

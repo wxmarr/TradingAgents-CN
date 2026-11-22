@@ -15,18 +15,20 @@
             专注于AI辅助分析技术的学习与验证平台。通过优化的工作流引擎和全流程分析辅助，
             帮助您系统学习股票分析方法，提升分析能力。
           </p>
-          <p class="hero-description" v-else>
-            <strong>您是否还在被这些问题困扰？</strong><br/>
-            配 Key、选模型、搭环境，半天过去了还没开始研究；<br/>
-            研究做到一半模型被限流，结果出不来；<br/>
-            网上信息鱼龙混杂，不知道该信什么…
-          </p>
-          <p class="hero-description" v-else style="margin-top:-10px;">
-            <strong>京东云合作版帮您一键解决：</strong><br/>
-            开通即用，Key 和数据源全部预配置；<br/>
-            内置 429 限流应对，深度分析稳稳跑完全流程；<br/>
-            14 个维度的结构化研究报告 + 乐观/审慎双情景研究员，帮您系统建立自己的分析方法论。
-          </p>
+          <template v-else>
+            <p class="hero-description">
+              <strong>您是否还在被这些问题困扰？</strong><br/>
+              配 Key、选模型、搭环境，半天过去了还没开始研究；<br/>
+              研究做到一半模型被限流，结果出不来；<br/>
+              网上信息鱼龙混杂，不知道该信什么…
+            </p>
+            <p class="hero-description" style="margin-top:-10px;">
+              <strong>京东云合作版帮您一键解决：</strong><br/>
+              开通即用，Key 和数据源全部预配置；<br/>
+              内置 429 限流应对，深度分析稳稳跑完全流程；<br/>
+              14 个维度的结构化研究报告 + 乐观/审慎双情景研究员，帮您系统建立自己的分析方法论。
+            </p>
+          </template>
           <div class="hero-positioning" v-if="!isJdyun">
             <div class="positioning-item">
               <el-icon><CircleCheck /></el-icon>

@@ -108,11 +108,25 @@ class AKShareAdapter(DataSourceAdapter):
             return None
         import akshare as ak
 
-        data_sources = [
-            ("stock_info_a_code_name", ak.stock_info_a_code_name),
-            ("stock_zh_a_spot_em", ak.stock_zh_a_spot_em),
-            ("stock_zh_a_spot", ak.stock_zh_a_spot),
-        ]
+        # Do not reference an AKShare endpoint directly until we have checked
+        # that the installed version still exports it.  In AKShare >= 1.20.46,
+        # ``stock_zh_a_spot`` was removed; evaluating it while constructing a
+        # fallback list raised AttributeError and prevented every other source
+        # (including BaoStock) from being tried.
+        data_sources = []
+        for source_name in (
+            "stock_info_a_code_name",
+            "stock_zh_a_spot_em",
+            "stock_zh_a_spot_sina",
+        ):
+            fetcher = getattr(ak, source_name, None)
+            if callable(fetcher):
+                data_sources.append((source_name, fetcher))
+            else:
+                logger.info(
+                    "AKShare: %s() is unavailable in the installed version; skipping",
+                    source_name,
+                )
 
         for source_name, fetcher in data_sources:
             try:
@@ -429,7 +443,7 @@ class AKShareAdapter(DataSourceAdapter):
                 fetchers = [
                     (
                         "eastmoney",
-                        lambda: ak.stock_zh_a_hist(
+                        lambda: (getattr(ak, 'stock_zh_a_hist_em', None) or ak.stock_zh_a_hist)(
                             symbol=code6,
                             period=period_map[period],
                             adjust=adjust_map.get(adj, "")

@@ -82,6 +82,13 @@ def main():
     
     # Start processes
     processes = []
+    sub_env = os.environ.copy()
+    current_pythonpath = sub_env.get("PYTHONPATH", "")
+    sub_env["PYTHONPATH"] = (
+        f"{project_root}{os.pathsep}{current_pythonpath}"
+        if current_pythonpath
+        else str(project_root)
+    )
     
     try:
         if not args.worker_only:
@@ -94,7 +101,7 @@ def main():
             backend_process = subprocess.Popen(
                 [python_exe, str(backend_main), "--port", str(args.port)],
                 cwd=str(project_root),
-                env=os.environ.copy()
+                env=sub_env
             )
             processes.append(("Backend", backend_process))
             print(f"[OK] Backend started (PID: {backend_process.pid})")
@@ -111,7 +118,7 @@ def main():
             worker_process = subprocess.Popen(
                 [python_exe, str(worker_main)],
                 cwd=str(project_root),
-                env=os.environ.copy()
+                env=sub_env
             )
             processes.append(("Worker", worker_process))
             print(f"[OK] Worker started (PID: {worker_process.pid})")

@@ -52,9 +52,10 @@ def update_worker_state(**kwargs):
 
 def setup_logging():
     """设置日志配置 - 确保日志在任何情况下都能写入文件"""
-    # 确保日志目录存在
+    # 确保日志目录存在（先判断，避免沙箱 mkdir shim 在目录已存在时抛 FileExistsError）
     log_dir = Path("logs")
-    log_dir.mkdir(exist_ok=True)
+    if not log_dir.exists():
+        log_dir.mkdir(parents=True, exist_ok=True)
 
     log_file = log_dir / "worker.log"
 
@@ -347,8 +348,10 @@ async def main():
 
 
 if __name__ == "__main__":
-    # 确保日志目录存在
-    Path("logs").mkdir(exist_ok=True)
+    # 确保日志目录存在（先判断，避免沙箱 mkdir shim 在目录已存在时抛 FileExistsError）
+    _logs_dir = Path("logs")
+    if not _logs_dir.exists():
+        _logs_dir.mkdir(parents=True, exist_ok=True)
 
     # 写入进程启动标记
     write_startup_log("=" * 60)

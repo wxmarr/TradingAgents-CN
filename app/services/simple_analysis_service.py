@@ -181,12 +181,11 @@ def get_provider_and_url_by_model_sync(
     """
     try:
         # 使用同步 MongoDB 客户端直接查询
-        from pymongo import MongoClient
+        from app.core.database import get_mongo_db_sync
         from app.core.config import settings
         import os
 
-        client = MongoClient(settings.MONGO_URI)
-        db = client[settings.MONGO_DB]
+        db = get_mongo_db_sync()
 
         # 查询最新的活跃配置
         configs_collection = db.system_configs
@@ -298,7 +297,7 @@ def get_provider_and_url_by_model_sync(
                 )
                 if exact_config is not None:
                     result = _build_provider_result(exact_config)
-                    client.close()
+
                     return result
 
             for config_dict in llm_configs:
@@ -311,16 +310,15 @@ def get_provider_and_url_by_model_sync(
                 if normalized_provider and provider != normalized_provider:
                     continue
                 result = _build_provider_result(config_dict)
-                client.close()
+
                 return result
 
             if fallback_config is not None:
                 logger.warning(f"⚠️ [同步查询] 模型 {model_name} 未找到 provider={normalized_provider or '-'} 的精确配置，回退到同名模型的首个配置")
                 result = _build_provider_result(fallback_config)
-                client.close()
+
                 return result
 
-        client.close()
 
         # 如果数据库中没有找到模型配置，使用默认映射
         logger.warning(f"⚠️ [同步查询] 数据库中未找到模型 {model_name}，使用默认映射")
@@ -328,8 +326,7 @@ def get_provider_and_url_by_model_sync(
 
         # 尝试从厂家配置中获取 default_base_url 和 API Key
         try:
-            client = MongoClient(settings.MONGO_URI)
-            db = client[settings.MONGO_DB]
+            db = get_mongo_db_sync()
             providers_collection = db.llm_providers
             provider_doc = providers_collection.find_one({"name": provider})
 
@@ -357,7 +354,6 @@ def get_provider_and_url_by_model_sync(
                 if api_key:
                     logger.info(f"✅ [同步查询] 使用环境变量的 API Key")
 
-            client.close()
             return {
                 "provider": provider,
                 "backend_url": backend_url,
@@ -379,11 +375,10 @@ def get_provider_and_url_by_model_sync(
 
         # 尝试从厂家配置中获取 default_base_url 和 API Key
         try:
-            from pymongo import MongoClient
+            from app.core.database import get_mongo_db_sync
             from app.core.config import settings
 
-            client = MongoClient(settings.MONGO_URI)
-            db = client[settings.MONGO_DB]
+            db = get_mongo_db_sync()
             providers_collection = db.llm_providers
             provider_doc = providers_collection.find_one({"name": provider})
 
@@ -409,7 +404,6 @@ def get_provider_and_url_by_model_sync(
             if not api_key:
                 api_key = _get_env_api_key_for_provider(provider)
 
-            client.close()
             return {
                 "provider": provider,
                 "backend_url": backend_url,
@@ -540,11 +534,10 @@ def _load_model_config_from_db(model_name: str) -> dict:
         dict: 模型配置字典，如 {"max_tokens": 4000, "temperature": 0.7, "reasoning_effort": "low"}
     """
     try:
-        from pymongo import MongoClient
+        from app.core.database import get_mongo_db_sync
         from app.core.config import settings
 
-        client = MongoClient(settings.MONGO_URI)
-        db = client[settings.MONGO_DB]
+        db = get_mongo_db_sync()
         configs_collection = db.system_configs
         doc = configs_collection.find_one({"is_active": True}, sort=[("version", -1)])
 
@@ -564,10 +557,9 @@ def _load_model_config_from_db(model_name: str) -> dict:
                         logger.info(f"🔧 [模型配置] {model_name} reasoning_effort={result['reasoning_effort']}")
                     else:
                         logger.info(f"🔧 [模型配置] {model_name} reasoning_effort 未设置")
-                    client.close()
+
                     return result
 
-        client.close()
         return {}
     except Exception as e:
         logger.warning(f"⚠️ 读取模型配置失败: {e}")
@@ -738,11 +730,10 @@ def create_analysis_config(
             # 🔧 未知厂家，尝试从数据库获取厂家的 default_base_url
             logger.warning(f"⚠️  未知厂家 {llm_provider}，尝试从数据库获取配置")
             try:
-                from pymongo import MongoClient
+                from app.core.database import get_mongo_db_sync
                 from app.core.config import settings
 
-                client = MongoClient(settings.MONGO_URI)
-                db = client[settings.MONGO_DB]
+                db = get_mongo_db_sync()
                 providers_collection = db.llm_providers
                 provider_doc = providers_collection.find_one({"name": llm_provider})
 
@@ -754,7 +745,6 @@ def create_analysis_config(
                     config["backend_url"] = "https://api.openai.com/v1"
                     logger.warning(f"⚠️  数据库中未找到厂家 {llm_provider} 的配置，使用默认 OpenAI 端点")
 
-                client.close()
             except Exception as e2:
                 logger.error(f"❌ 查询数据库失败: {e2}，使用默认 OpenAI 端点")
                 config["backend_url"] = "https://api.openai.com/v1"
@@ -1569,12 +1559,11 @@ class SimpleAnalysisService:
                         loop.close()
 
                     # 2. 更新 MongoDB（使用同步客户端，避免事件循环冲突）
-                    from pymongo import MongoClient
+                    from app.core.database import get_mongo_db_sync
                     from app.core.config import settings
                     from datetime import datetime
 
-                    sync_client = MongoClient(settings.MONGO_URI)
-                    sync_db = sync_client[settings.MONGO_DB]
+                    sync_db = get_mongo_db_sync()
 
                     sync_db.analysis_tasks.update_one(
                         {"task_id": task_id},
@@ -1587,7 +1576,7 @@ class SimpleAnalysisService:
                             }
                         }
                     )
-                    sync_client.close()
+
 
                 except Exception as e:
                     logger.warning(f"⚠️ 进度更新失败: {e}")
@@ -1885,12 +1874,11 @@ class SimpleAnalysisService:
                                     logger.debug(f"✅ [Graph进度] 已提交异步更新任务: {int(progress_pct)}%")
                                 except RuntimeError:
                                     # 没有运行的事件循环，使用同步方式更新 MongoDB
-                                    from pymongo import MongoClient
+                                    from app.core.database import get_mongo_db_sync
                                     from app.core.config import settings
 
-                                    # 创建同步 MongoDB 客户端
-                                    sync_client = MongoClient(settings.MONGO_URI)
-                                    sync_db = sync_client[settings.MONGO_DB]
+                                    # 复用进程内同步 MongoDB 客户端
+                                    sync_db = get_mongo_db_sync()
 
                                     # 同步更新 MongoDB
                                     sync_db.analysis_tasks.update_one(
@@ -1904,7 +1892,7 @@ class SimpleAnalysisService:
                                             }
                                         }
                                     )
-                                    sync_client.close()
+
 
                                     # 异步更新内存（创建新的事件循环）
                                     loop = asyncio.new_event_loop()

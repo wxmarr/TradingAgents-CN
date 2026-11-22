@@ -106,6 +106,8 @@ async def jit_sync_stock_data(stock_code: str, parameters_dict: Dict[str, Any]) 
     api_sources = [s for s in all_sources if s not in ("local", "mongodb", "local_file")]
     if not api_sources:
         api_sources = ["tushare", "akshare", "baostock"]  # 默认兜底顺序
+    elif "baostock" not in api_sources:
+        api_sources.append("baostock")
 
     logger.info(f"📡 数据准备：将按优先级依次尝试数据源 {api_sources}，获取 {stock_code} 最新行情 ({start_date} → {end_date})")
 

@@ -1387,7 +1387,10 @@ class AKShareProvider(BaseStockDataProvider):
 
             # 方法2: 尝试获取单只股票实时数据
             def fetch_individual_spot():
-                return self.ak.stock_zh_a_hist(symbol=code, period="daily", adjust="")
+                hist_func = getattr(self.ak, 'stock_zh_a_hist_em', None) or getattr(self.ak, 'stock_zh_a_hist', None)
+                if hist_func:
+                    return hist_func(symbol=code, period="daily", adjust="")
+                return None
 
             try:
                 hist_df = await asyncio.to_thread(fetch_individual_spot)
@@ -1712,13 +1715,16 @@ class AKShareProvider(BaseStockDataProvider):
             for attempt in range(max_retries):
                 try:
                     def fetch_historical_data():
-                        return self.ak.stock_zh_a_hist(
-                            symbol=code,
-                            period=ak_period,
-                            start_date=start_date_formatted,
-                            end_date=end_date_formatted,
-                            adjust="qfq"  # 前复权
-                        )
+                        hist_func = getattr(self.ak, 'stock_zh_a_hist_em', None) or getattr(self.ak, 'stock_zh_a_hist', None)
+                        if hist_func:
+                            return hist_func(
+                                symbol=code,
+                                period=ak_period,
+                                start_date=start_date_formatted,
+                                end_date=end_date_formatted,
+                                adjust="qfq"  # 前复权
+                            )
+                        return None
 
                     hist_df = await asyncio.to_thread(fetch_historical_data)
 

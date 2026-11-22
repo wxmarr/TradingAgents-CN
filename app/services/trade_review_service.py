@@ -1170,13 +1170,14 @@ class TradeReviewService:
                 
                 # 尝试使用 akshare 获取
                 try:
-                    df_ak = ak.stock_zh_a_hist(
+                    hist_func = getattr(ak, 'stock_zh_a_hist_em', None) or getattr(ak, 'stock_zh_a_hist', None)
+                    df_ak = hist_func(
                         symbol=code,
                         period="daily",
                         start_date=start,
                         end_date=end,
                         adjust="qfq"
-                    )
+                    ) if hist_func else None
                     if df_ak is not None and not df_ak.empty:
                         # 统一列名
                         df = df_ak.rename(columns={

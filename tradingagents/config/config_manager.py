@@ -70,7 +70,10 @@ class ConfigManager:
     
     def __init__(self, config_dir: str = "config"):
         self.config_dir = Path(config_dir)
-        self.config_dir.mkdir(exist_ok=True)
+        # 先判断是否存在再创建：某些沙箱环境（如 WorkBuddy）的 mkdir shim
+        # 即使 exist_ok=True 也会在目录已存在时抛 FileExistsError。
+        if not self.config_dir.exists():
+            self.config_dir.mkdir(parents=True, exist_ok=True)
 
         self.models_file = self.config_dir / "models.json"
         self.pricing_file = self.config_dir / "pricing.json"
@@ -774,6 +777,11 @@ class TokenTracker:
 # 全局配置管理器实例 - 使用项目根目录的配置
 def _get_project_config_dir():
     """获取项目根目录的配置目录"""
+    # 支持通过环境变量 PROJECT_CONFIG_DIR 覆盖运行时配置目录，
+    # 以避开与源码目录 config/ 同名冲突（沙箱环境下 mkdir 会对已存在目录抛错）。
+    override = os.getenv("PROJECT_CONFIG_DIR")
+    if override:
+        return override
     # 从当前文件位置推断项目根目录
     current_file = Path(__file__)  # tradingagents/config/config_manager.py
     project_root = current_file.parent.parent.parent  # 向上三级到项目根目录

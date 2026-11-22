@@ -354,6 +354,37 @@ class ThreadWorker:
         except Exception as e:
             logger.error(f"❌ 任务执行失败: {task_id} - {e}", exc_info=True)
             success = False
+            # 同步更新任务失败状态至内存与数据库，防止前端状态轮询假死卡死
+            try:
+                from app.services.memory_state_manager import get_memory_state_manager, TaskStatus
+                from app.utils.timezone import now_tz
+
+                err_msg = str(e)
+                memory_manager = get_memory_state_manager()
+                await memory_manager.update_task_status(
+                    task_id=task_id,
+                    status=TaskStatus.FAILED,
+                    progress=100,
+                    message=f"分析失败: {err_msg}",
+                    error_message=err_msg
+                )
+
+                if existing_task:
+                    existing_task.status = AnalysisStatus.FAILED
+                    existing_task.completed_at = now_tz()
+                    existing_task.error_message = err_msg
+                    existing_task.message = f"分析失败: {err_msg}"
+                    await self.task_service._update_task(existing_task)
+                elif self.task_service:
+                    db_task = await self.task_service.get_task(task_id)
+                    if db_task:
+                        db_task.status = AnalysisStatus.FAILED
+                        db_task.completed_at = now_tz()
+                        db_task.error_message = err_msg
+                        db_task.message = f"分析失败: {err_msg}"
+                        await self.task_service._update_task(db_task)
+            except Exception as update_err:
+                logger.error(f"❌ 更新任务失败状态异常: {task_id} - {update_err}")
 
         finally:
             # 确认任务完成（无论成功或失败）

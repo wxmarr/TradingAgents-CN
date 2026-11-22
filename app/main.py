@@ -13,6 +13,14 @@ For commercial licensing, please contact: hsliup@163.com
 商业许可咨询，请联系：hsliup@163.com
 """
 
+import sys
+from pathlib import Path
+
+# 确保项目根目录在 sys.path 中，兼容直接运行与模块运行
+_project_root = Path(__file__).resolve().parent.parent
+if str(_project_root) not in sys.path:
+    sys.path.insert(0, str(_project_root))
+
 from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.middleware.trustedhost import TrustedHostMiddleware
